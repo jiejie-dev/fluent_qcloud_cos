@@ -146,16 +146,23 @@ Future<HttpClientRequest> getRequest(String method, String action,
   return req;
 }
 
-Future<HttpClientResponse> getResponse(String method, String action,
-    {required ObjectStoragePutObjectRequest putObjectRequest,
-    Map<String, String?> params = const {},
-    Map<String, String?> headers = const {}}) async {
+Future<HttpClientResponse> getResponse(
+  String method,
+  String action, {
+  required ObjectStoragePutObjectRequest putObjectRequest,
+  Map<String, String?> params = const {},
+  Map<String, String?> headers = const {},
+  String? token,
+  String scheme = "https",
+}) async {
   var req = await getRequest(
     method,
     action,
     putObjectRequest: putObjectRequest,
     params: params,
     headers: headers,
+    token: token,
+    scheme: scheme,
   );
   var res = await req.close();
   return res;

@@ -15,12 +15,25 @@ and the Flutter guide for
 
 ## Features
 
-- 分快上传功能.
+- 简单文件上传
+- 分快上传(断点续传).
 
 ## Usage
 
 ```dart
-await FluentQCloudCos.putObject(
+final handler =
+        ObjectStoragePutObjectEventHandler(taskId: "putObjectSimple");
+    handler.onFailed = (event) {
+      cosLog(event.errorMessage ?? "未知错误");
+    };
+    handler.onSuccess = (event) {
+      cosLog("上传成功");
+    };
+    handler.onProgress = (event) {
+      cosLog("${event.currentSize}/${event.totalSize}");
+    };
+/// 如果要异步上传请勿使用 await 关键字, 并传入 handler 以获取进度和错误
+FluentQCloudCos.putObject(
       ObjectStoragePutObjectRequest(
         taskId: "putObjectFileSizeMoreThan20M",
         filePath: largeFilePath,
@@ -33,6 +46,7 @@ await FluentQCloudCos.putObject(
             DateTime.now().add(const Duration(days: 50)).millisecondsSinceEpoch,
         region: region!,
       ),
+      handler: handler,
     );
 ```
 

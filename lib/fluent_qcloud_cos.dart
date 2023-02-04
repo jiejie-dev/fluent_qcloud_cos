@@ -55,6 +55,7 @@ class FluentQCloudCos {
       chunks[partNumber].eTag = part.eTag;
     }
     final f = File(putObjectRequest.filePath);
+    final fileSize = await f.length();
     for (var chunk in chunks) {
       if (chunk.done) {
         continue;
@@ -67,10 +68,11 @@ class FluentQCloudCos {
       await reader.cancel();
 
       if (handler?.onProgress != null) {
+        cosLog('onProgress: ${chunk.offset + chunk.size}/${fileSize}');
         handler!.onProgress!(ObjectStoragePutObjectResult(
           event: 'onProgress',
           currentSize: chunk.offset + chunk.size,
-          totalSize: f.lengthSync(),
+          totalSize: fileSize,
         ));
       }
     }
@@ -120,6 +122,7 @@ class FluentQCloudCos {
       putObjectRequest.objectName,
       putObjectRequest: putObjectRequest,
       params: {"uploads": ""},
+      token: putObjectRequest.securityToken,
     );
     final xmlContent = await resp.transform(utf8.decoder).join("");
     if (resp.statusCode != 200) {
@@ -145,6 +148,7 @@ class FluentQCloudCos {
         "content-type": contentType,
         "content-length": partData.length.toString(),
       },
+      token: putObjectRequest.securityToken,
     );
     req.add(partData);
     final resp = await req.close();
@@ -166,6 +170,7 @@ class FluentQCloudCos {
       putObjectRequest.objectName,
       putObjectRequest: putObjectRequest,
       params: {'uploadId': uploadId},
+      token: putObjectRequest.securityToken,
     );
     final payload = CompleteMultipartUpload(chunks);
     req.add(utf8.encode(payload.xmlContent()));
@@ -189,6 +194,7 @@ class FluentQCloudCos {
       '',
       putObjectRequest: putObjectRequest,
       params: {'prefix': putObjectRequest.objectName, 'uploads': ''},
+      token: putObjectRequest.securityToken,
     );
     final xmlContent = await resp.transform(utf8.decoder).join("");
     if (resp.statusCode != 200) {
@@ -224,6 +230,7 @@ class FluentQCloudCos {
       putObjectRequest.objectName,
       putObjectRequest: putObjectRequest,
       params: {'uploadId': uploadId},
+      token: putObjectRequest.securityToken,
     );
     final xmlContent = await resp.transform(utf8.decoder).join("");
     if (resp.statusCode != 200) {
