@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:fluent_object_storage/fluent_object_storage.dart';
 import 'package:fluent_qcloud_cos/models/complete_multipart_upload.dart';
 import 'package:fluent_qcloud_cos/models/initiate_multipart_upload_result.dart';

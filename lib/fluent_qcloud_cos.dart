@@ -16,7 +16,8 @@ import 'package:fluent_qcloud_cos/models/list_part.dart';
 import 'package:fluent_qcloud_cos/utils.dart';
 import 'package:mime/mime.dart';
 
-/// TODO: 添加校验功能和一些边界值检测处理 参考官方 golang sdk: https://github.com/tencentyun/cos-go-sdk-v5/blob/master/object.go
+/// TODO: 添加校验功能和一些边界值检测处理 参考官方 golang sdk:
+/// https://github.com/tencentyun/cos-go-sdk-v5/blob/master/object.go
 class FluentQCloudCos {
   /// 文件上传
   /// 当文件大于 20M 时自动启用分快上传, 否则使用简单文件上传
@@ -68,7 +69,7 @@ class FluentQCloudCos {
       await reader.cancel();
 
       if (handler?.onProgress != null) {
-        cosLog('onProgress: ${chunk.offset + chunk.size}/${fileSize}');
+        cosLog('onProgress: ${chunk.offset + chunk.size}/$fileSize');
         handler!.onProgress!(ObjectStoragePutObjectResult(
           event: 'onProgress',
           currentSize: chunk.offset + chunk.size,

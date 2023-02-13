@@ -1,5 +1,5 @@
 name: fluent_qcloud_cos
-description: A new Flutter package project.
+description: 腾讯云对象存储上传插件, 支持分快上传, 进度显示.
 version: 0.0.1
 homepage: https://github.com/jiejie-dev/fluent_qcloud_cos
 

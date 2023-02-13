@@ -11,7 +11,7 @@ and the Flutter guide for
 [developing packages and plugins](https://flutter.dev/developing-packages).
 -->
 
-一个纯dart的腾讯云对象存储的包.
+一个纯dart实现的腾讯云对象存储的包.
 
 ## Features
 
