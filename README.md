@@ -1,15 +1,6 @@
-<!--
-This README describes the package. If you publish this package to pub.dev,
-this README's contents appear on the landing page for your package.
+# fluent_qcloud_cos
 
-For information about how to write a good package README, see the guide for
-[writing package pages](https://dart.dev/guides/libraries/writing-package-pages).
-
-For general information about developing packages, see the Dart guide for
-[creating packages](https://dart.dev/guides/libraries/create-library-packages)
-and the Flutter guide for
-[developing packages and plugins](https://flutter.dev/developing-packages).
--->
+[![Pub Version (including pre-releases)](https://img.shields.io/pub/v/fluent_qcloud_cos?include_prereleases)](https://pub.flutter-io.cn/packages/fluent_qcloud_cos) [![GitHub license](https://img.shields.io/github/license/jiejie-dev/fluent_qcloud_cos)](https://github.com/jiejie-dev/fluent_qcloud_cos/blob/master/LICENSE) [![GitHub stars](https://img.shields.io/github/stars/jiejie-dev/fluent_qcloud_cos?style=social)](https://github.com/jiejie-dev/fluent_qcloud_cos/stargazers)
 
 一个纯dart实现的腾讯云对象存储的包.
 
