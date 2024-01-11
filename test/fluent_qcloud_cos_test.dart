@@ -1,4 +1,6 @@
-import 'package:fluent_object_storage/fluent_object_storage.dart';
+import 'dart:io';
+
+import 'package:cross_file/cross_file.dart';
 import 'package:fluent_qcloud_cos/models/complete_multipart_upload.dart';
 import 'package:fluent_qcloud_cos/models/initiate_multipart_upload_result.dart';
 import 'package:fluent_qcloud_cos/models/list_multipart_uploads.dart';
@@ -10,11 +12,15 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:fluent_qcloud_cos/fluent_qcloud_cos.dart';
 import 'package:sync/sync.dart';
 
-void main() async {
-  final Uri basedir = (goldenFileComparator as LocalFileComparator).basedir;
+final String pathPrefix =
+    Directory.current.path.endsWith('test') ? './assets/' : './test/assets/';
 
-  final smallFilePath = "${basedir.path}file-small.jpg";
-  final largeFilePath = "${basedir.path}file-large.mp4";
+void main() async {
+  final smallFilePath = "${pathPrefix}1000x1000-1MB.png";
+  final largeFilePath = "${pathPrefix}1000x1000-21MB.png";
+
+  final smallFile = XFile(smallFilePath);
+  final largeFile = XFile(largeFilePath);
 
   await dotenv.load(fileName: ".env");
 
@@ -153,7 +159,7 @@ void main() async {
     await FluentQCloudCos.putObjectSimple(
       ObjectStoragePutObjectRequest(
         taskId: "putObjectSimple",
-        filePath: smallFilePath,
+        file: smallFile,
         bucketName: bucketName!,
         objectName: "file-small.jpg",
         accessKeyId: secretId!,
@@ -187,7 +193,7 @@ void main() async {
     await FluentQCloudCos.putObjectMultiPart(
       ObjectStoragePutObjectRequest(
         taskId: "putObjectMultiPart",
-        filePath: largeFilePath,
+        file: largeFile,
         bucketName: bucketName!,
         objectName: "file-large.mp4",
         accessKeyId: secretId!,
@@ -208,7 +214,7 @@ void main() async {
     final result = await FluentQCloudCos.initiateMultipartUpload(
       ObjectStoragePutObjectRequest(
         taskId: "initiateMultipartUpload",
-        filePath: largeFilePath,
+        file: largeFile,
         bucketName: bucketName!,
         objectName: "file-large.mp4",
         accessKeyId: secretId!,
@@ -242,7 +248,7 @@ void main() async {
     await FluentQCloudCos.putObject(
       ObjectStoragePutObjectRequest(
         taskId: "putObjectFileSizeLessThan20M",
-        filePath: smallFilePath,
+        file: smallFile,
         bucketName: bucketName!,
         objectName: "file-small.jpg",
         accessKeyId: secretId!,
@@ -276,7 +282,7 @@ void main() async {
     await FluentQCloudCos.putObject(
       ObjectStoragePutObjectRequest(
         taskId: "putObjectFileSizeMoreThan20M",
-        filePath: largeFilePath,
+        file: largeFile,
         bucketName: bucketName!,
         objectName: "file-small.jpg",
         accessKeyId: secretId!,

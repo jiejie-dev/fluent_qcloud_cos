@@ -1,7 +1,8 @@
 import 'dart:developer';
-import 'dart:io';
 import 'package:convert/convert.dart';
+import 'package:cross_file/cross_file.dart';
 import 'package:crypto/crypto.dart';
+import 'package:dio/dio.dart';
 import 'package:fluent_object_storage/fluent_object_storage.dart';
 import 'package:fluent_qcloud_cos/models/chunks.dart';
 import 'package:fluent_qcloud_cos/models/divide_part_result.dart';
@@ -16,13 +17,16 @@ XmlElement subElem(XmlElement node, String name) {
 }
 
 ///生成签名
-String getSign(String method, String key,
-    {required String secretId,
-    required String secretKey,
-    Map<String, String?> headers = const {},
-    Map<String, String?> params = const {},
-    DateTime? signTime,
-    bool anonymous = false}) {
+String getSign(
+  String method,
+  String key, {
+  required String secretId,
+  required String secretKey,
+  Map<String, String?> headers = const {},
+  Map<String, String?> params = const {},
+  DateTime? signTime,
+  bool anonymous = false,
+}) {
   if (anonymous) {
     return "";
   } else {
@@ -102,18 +106,23 @@ String hmacSha1(String msg, String key) {
   return hex.encode(Hmac(sha1, key.codeUnits).convert(msg.codeUnits).bytes);
 }
 
-Future<HttpClientRequest> getRequest(String method, String action,
-    {required ObjectStoragePutObjectRequest putObjectRequest,
-    Map<String, String?> params = const {},
-    Map<String, String?> headers = const {},
-    String? token,
-    String scheme = "https"}) async {
+Future<Response<T>> request<T>(
+  String method,
+  String action, {
+  required ObjectStoragePutObjectRequest putObjectRequest,
+  Map<String, String?> params = const {},
+  Map<String, String?> headers = const {},
+  String? token,
+  String scheme = "https",
+  Stream? stream,
+  Object? data,
+}) async {
   String urlParams =
       params.keys.toList().map((e) => "$e=${params[e] ?? ""}").join("&");
   if (urlParams.isNotEmpty) {
     urlParams = "?$urlParams";
   }
-  HttpClient client = HttpClient();
+  final dio = Dio();
 
   if (!action.startsWith("/")) {
     action = "/$action";
@@ -122,54 +131,37 @@ Future<HttpClientRequest> getRequest(String method, String action,
   // "$scheme://$bucketName.cos.$region.myqcloud.com"
   final uri =
       "$scheme://${putObjectRequest.bucketName}.cos.${putObjectRequest.region}.myqcloud.com";
-  var req = await client.openUrl(method, Uri.parse("$uri$action$urlParams"));
-
-  headers.forEach((key, value) {
-    req.headers.add(key, value ?? "");
-  });
-  Map<String, String> signHeaders = {};
-  req.headers.forEach((name, values) {
-    signHeaders[name] = values[0];
-  });
   var sighn = getSign(
     method,
     action,
     secretId: putObjectRequest.accessKeyId,
     secretKey: putObjectRequest.accessKeySecret,
     params: params,
-    headers: signHeaders,
-  );
-  req.headers.add("Authorization", sighn);
-  if (token != null) {
-    req.headers.add("x-cos-security-token", token);
-  }
-  return req;
-}
-
-Future<HttpClientResponse> getResponse(
-  String method,
-  String action, {
-  required ObjectStoragePutObjectRequest putObjectRequest,
-  Map<String, String?> params = const {},
-  Map<String, String?> headers = const {},
-  String? token,
-  String scheme = "https",
-}) async {
-  var req = await getRequest(
-    method,
-    action,
-    putObjectRequest: putObjectRequest,
-    params: params,
     headers: headers,
-    token: token,
-    scheme: scheme,
   );
-  var res = await req.close();
-  return res;
+  final reqHeaders = headers.map((key, value) => MapEntry(key, value ?? ""));
+  reqHeaders["Authorization"] = sighn;
+  if (token != null) {
+    reqHeaders["x-cos-security-token"] = token;
+  }
+  try {
+    final resp = await dio.request<T>(
+      "$uri$action",
+      queryParameters: params,
+      data: data ?? stream,
+      options: Options(
+        method: method,
+        headers: reqHeaders,
+      ),
+    );
+    return resp;
+  } catch (e) {
+    cosLog("request error: $e");
+    rethrow;
+  }
 }
 
-Future<SplitFileChunksResult> splitFileIntoChunks(String filepath) async {
-  final file = File(filepath);
+Future<SplitFileChunksResult> splitFileIntoChunks(XFile file) async {
   final filesize = await file.length();
   final divider = DividePartResult.parse(filesize);
   final List<Chunk> chunks = [];
