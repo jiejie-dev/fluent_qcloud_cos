@@ -152,6 +152,7 @@ Future<Response<T>> request<T>(
       options: Options(
         method: method,
         headers: reqHeaders,
+        validateStatus: (status) => true,
       ),
     );
     return resp;

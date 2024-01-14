@@ -70,6 +70,7 @@ class FluentQCloudCos {
       if (handler?.onProgress != null) {
         cosLog('onProgress: ${chunk.offset + chunk.size}/$fileSize');
         handler!.onProgress!(ObjectStoragePutObjectResult(
+          taskId: putObjectRequest.taskId,
           event: 'onProgress',
           currentSize: chunk.offset + chunk.size,
           totalSize: fileSize,
@@ -78,7 +79,8 @@ class FluentQCloudCos {
     }
     await completeMultipartUpload(uploadId, chunks, putObjectRequest);
     if (handler?.onSuccess != null) {
-      handler!.onSuccess!(ObjectStoragePutObjectResult(event: 'onSuccess'));
+      handler!.onSuccess!(ObjectStoragePutObjectResult(
+          taskId: putObjectRequest.taskId, event: 'onSuccess'));
     }
   }
 
@@ -106,10 +108,11 @@ class FluentQCloudCos {
     if (response.statusCode != 200) {
       // String content = await response.transform(utf8.decoder).join("");
       cosLog("putObject error content: ${response.data}");
-      return null;
+      throw COSException(response.statusCode!, response.data ?? "");
     }
     if (handler?.onSuccess != null) {
-      handler!.onSuccess!(ObjectStoragePutObjectResult(event: 'onSuccess'));
+      handler!.onSuccess!(ObjectStoragePutObjectResult(
+          taskId: putObjectRequest.taskId, event: 'onSuccess'));
     }
     return putObjectRequest.objectName;
   }
