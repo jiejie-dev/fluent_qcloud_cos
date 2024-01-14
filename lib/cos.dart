@@ -20,27 +20,26 @@ import 'package:mime/mime.dart';
 class FluentQCloudCos {
   /// 文件上传
   /// 当文件大于 20M 时自动启用分快上传, 否则使用简单文件上传
-  static Future<void> putObject(ObjectStoragePutObjectRequest putObjectRequest,
+  static Future<void> putObject(ObjectStoragePutObjectRequest request,
       {ObjectStoragePutObjectEventHandler? handler}) async {
-    final fileSize = await putObjectRequest.file.length();
+    final fileSize = request.file.size;
     if (fileSize > defaultSimpleFileMaxSize) {
-      await putObjectMultiPart(putObjectRequest, handler: handler);
+      await putObjectMultiPart(request, handler: handler);
     } else {
-      await putObjectSimple(putObjectRequest, handler: handler);
+      await putObjectSimple(request, handler: handler);
     }
   }
 
-  static Future<void> putObjectMultiPart(
-      ObjectStoragePutObjectRequest putObjectRequest,
+  static Future<void> putObjectMultiPart(ObjectStoragePutObjectRequest request,
       {ObjectStoragePutObjectEventHandler? handler}) async {
-    String? uploadId = await getResumableUploadId(putObjectRequest);
+    String? uploadId = await getResumableUploadId(request);
     if (uploadId == null) {
-      final initResult = await initiateMultipartUpload(putObjectRequest);
+      final initResult = await initiateMultipartUpload(request);
       uploadId = initResult.uploadId;
     }
-    final splitResult = await splitFileIntoChunks(putObjectRequest.file);
+    final splitResult = await splitFileIntoChunks(request.file);
     final chunks = splitResult.chunks;
-    final partsResult = await listParts(uploadId, putObjectRequest);
+    final partsResult = await listParts(uploadId, request);
     for (var part in partsResult.parts) {
       int partNumber = part.partNumber;
       if (partNumber > splitResult.divider.partNumber) {
@@ -54,55 +53,54 @@ class FluentQCloudCos {
       chunks[partNumber].done = true;
       chunks[partNumber].eTag = part.eTag;
     }
-    final fileSize = await putObjectRequest.file.length();
+    final fileSize = request.file.size;
     for (var chunk in chunks) {
       if (chunk.done) {
         continue;
       }
-      final stream = putObjectRequest.file
-          .openRead(chunk.offset, chunk.offset + chunk.size);
-      final reader = ChunkedStreamReader(stream);
+      final stream = request.file.readStream;
+      if (stream == null) {
+        throw COSException(400, "file stream is null");
+      }
+      final fs = stream.skip(chunk.offset);
+      final reader = ChunkedStreamReader(fs);
       final partData = await reader.readChunk(chunk.size);
-      chunk.eTag =
-          await uploadPart(uploadId, chunk.number, partData, putObjectRequest);
+      chunk.eTag = await uploadPart(uploadId, chunk.number, partData, request);
       await reader.cancel();
 
       if (handler?.onProgress != null) {
         cosLog('onProgress: ${chunk.offset + chunk.size}/$fileSize');
         handler!.onProgress!(ObjectStoragePutObjectResult(
-          taskId: putObjectRequest.taskId,
+          taskId: request.taskId,
           event: 'onProgress',
           currentSize: chunk.offset + chunk.size,
           totalSize: fileSize,
         ));
       }
     }
-    await completeMultipartUpload(uploadId, chunks, putObjectRequest);
+    await completeMultipartUpload(uploadId, chunks, request);
     if (handler?.onSuccess != null) {
       handler!.onSuccess!(ObjectStoragePutObjectResult(
-          taskId: putObjectRequest.taskId, event: 'onSuccess'));
+          taskId: request.taskId, event: 'onSuccess'));
     }
   }
 
-  static Future<String?> putObjectSimple(
-      ObjectStoragePutObjectRequest putObjectRequest,
+  static Future<String?> putObjectSimple(ObjectStoragePutObjectRequest request,
       {ObjectStoragePutObjectEventHandler? handler}) async {
     cosLog("putObjectSimple");
-    int flength = await putObjectRequest.file.length();
-    String? contentType = putObjectRequest.file.mimeType;
-    contentType ??= lookupMimeType(putObjectRequest.file.name);
+    int fileSize = request.file.size;
+    String? contentType = lookupMimeType(request.file.name);
 
-    var fs = putObjectRequest.file.openRead();
-    var response = await request<String>(
+    final response = await cosRequest<String>(
       "PUT",
-      putObjectRequest.objectName,
-      putObjectRequest: putObjectRequest,
+      request.objectName,
+      putObjectRequest: request,
       headers: {
         "content-type": contentType,
-        "content-length": flength.toString()
+        "content-length": fileSize.toString()
       },
-      token: putObjectRequest.securityToken,
-      stream: fs,
+      token: request.securityToken,
+      stream: request.file.readStream,
     );
     cosLog("request-id:${response.headers["x-cos-request-id"]?.first ?? ""}");
     if (response.statusCode != 200) {
@@ -112,20 +110,20 @@ class FluentQCloudCos {
     }
     if (handler?.onSuccess != null) {
       handler!.onSuccess!(ObjectStoragePutObjectResult(
-          taskId: putObjectRequest.taskId, event: 'onSuccess'));
+          taskId: request.taskId, event: 'onSuccess'));
     }
-    return putObjectRequest.objectName;
+    return request.objectName;
   }
 
   /// 初始化分快上传
   static Future<InitiateMultipartUploadResult> initiateMultipartUpload(
-      ObjectStoragePutObjectRequest putObjectRequest) async {
-    final resp = await request<String>(
+      ObjectStoragePutObjectRequest request) async {
+    final resp = await cosRequest<String>(
       'POST',
-      putObjectRequest.objectName,
-      putObjectRequest: putObjectRequest,
+      request.objectName,
+      putObjectRequest: request,
       params: {"uploads": ""},
-      token: putObjectRequest.securityToken,
+      token: request.securityToken,
     );
     // final xmlContent = await resp.transform(utf8.decoder).join("");
     if (resp.statusCode != 200) {
@@ -139,22 +137,21 @@ class FluentQCloudCos {
     String uploadId,
     int partNumber,
     List<int> partData,
-    ObjectStoragePutObjectRequest putObjectRequest,
+    ObjectStoragePutObjectRequest request,
   ) async {
-    String? contentType = putObjectRequest.file.mimeType;
-    contentType ??= lookupMimeType(putObjectRequest.file.name);
+    String? contentType = lookupMimeType(request.file.name);
 
     final fs = Stream.fromIterable(partData.map((e) => [e]));
-    final resp = await request<String>(
+    final resp = await cosRequest<String>(
       'PUT',
-      putObjectRequest.objectName,
-      putObjectRequest: putObjectRequest,
+      request.objectName,
+      putObjectRequest: request,
       params: {'uploadId': uploadId, 'partNumber': partNumber.toString()},
       headers: {
         "content-type": contentType,
         "content-length": partData.length.toString(),
       },
-      token: putObjectRequest.securityToken,
+      token: request.securityToken,
       stream: fs,
     );
     // final xmlContent = await resp.transform(utf8.decoder).join("");
@@ -168,15 +165,15 @@ class FluentQCloudCos {
   static Future<void> completeMultipartUpload(
     String uploadId,
     List<Chunk> chunks,
-    ObjectStoragePutObjectRequest putObjectRequest,
+    ObjectStoragePutObjectRequest request,
   ) async {
     final payload = CompleteMultipartUpload(chunks);
-    final resp = await request(
+    final resp = await cosRequest(
       'POST',
-      putObjectRequest.objectName,
-      putObjectRequest: putObjectRequest,
+      request.objectName,
+      putObjectRequest: request,
       params: {'uploadId': uploadId},
-      token: putObjectRequest.securityToken,
+      token: request.securityToken,
       data: utf8.encode(payload.xmlContent()),
     );
 
@@ -193,13 +190,13 @@ class FluentQCloudCos {
   static Future<void> abortMultipartUpload() async {}
 
   static Future<ListMultipartUploadsResult> listMultipartUploads(
-      ObjectStoragePutObjectRequest putObjectRequest) async {
-    final resp = await request<String>(
+      ObjectStoragePutObjectRequest request) async {
+    final resp = await cosRequest<String>(
       'GET',
       '',
-      putObjectRequest: putObjectRequest,
-      params: {'prefix': putObjectRequest.objectName, 'uploads': ''},
-      token: putObjectRequest.securityToken,
+      putObjectRequest: request,
+      params: {'prefix': request.objectName, 'uploads': ''},
+      token: request.securityToken,
     );
     // final xmlContent = await resp.transform(utf8.decoder).join("");
     if (resp.statusCode != 200) {
@@ -210,14 +207,14 @@ class FluentQCloudCos {
 
   /// 获取未完成的分块上传ID UploadId
   static Future<String?> getResumableUploadId(
-      ObjectStoragePutObjectRequest putObjectRequest) async {
+      ObjectStoragePutObjectRequest request) async {
     try {
-      final uploadsResult = await listMultipartUploads(putObjectRequest);
+      final uploadsResult = await listMultipartUploads(request);
       if (uploadsResult.uploads.isEmpty) {
         return null;
       }
       return uploadsResult.uploads
-          .lastWhere((element) => element.key == putObjectRequest.objectName)
+          .lastWhere((element) => element.key == request.objectName)
           .uploadId;
     } catch (e) {
       return null;
@@ -228,14 +225,14 @@ class FluentQCloudCos {
   /// 即罗列出指定 UploadId 所属的所有已上传成功的分块。
   static Future<ListPartsResult> listParts(
     String uploadId,
-    ObjectStoragePutObjectRequest putObjectRequest,
+    ObjectStoragePutObjectRequest request,
   ) async {
-    final resp = await request<String>(
+    final resp = await cosRequest<String>(
       'GET',
-      putObjectRequest.objectName,
-      putObjectRequest: putObjectRequest,
+      request.objectName,
+      putObjectRequest: request,
       params: {'uploadId': uploadId},
-      token: putObjectRequest.securityToken,
+      token: request.securityToken,
     );
     // final xmlContent = await resp.transform(utf8.decoder).join("");
     if (resp.statusCode != 200) {

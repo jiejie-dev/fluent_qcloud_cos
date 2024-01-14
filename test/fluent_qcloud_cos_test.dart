@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:cross_file/cross_file.dart';
 import 'package:fluent_qcloud_cos/models/complete_multipart_upload.dart';
 import 'package:fluent_qcloud_cos/models/initiate_multipart_upload_result.dart';
 import 'package:fluent_qcloud_cos/models/list_multipart_uploads.dart';
@@ -10,6 +9,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:fluent_qcloud_cos/fluent_qcloud_cos.dart';
+import 'package:platform_file/platform_file.dart';
 import 'package:sync/sync.dart';
 
 final String pathPrefix =
@@ -19,8 +19,18 @@ void main() async {
   final smallFilePath = "${pathPrefix}1000x1000-1MB.png";
   final largeFilePath = "${pathPrefix}1000x1000-21MB.png";
 
-  final smallFile = XFile(smallFilePath);
-  final largeFile = XFile(largeFilePath);
+  final smallFile = PlatformFile(
+    name: "1000x1000-1MB.png",
+    path: smallFilePath,
+    size: 1 * 1024 * 1024,
+    readStream: File(smallFilePath).openRead(),
+  );
+  final largeFile = PlatformFile(
+    name: "1000x1000-21MB.png",
+    path: largeFilePath,
+    size: 21 * 1024 * 1024,
+    readStream: File(largeFilePath).openRead(),
+  );
 
   await dotenv.load(fileName: ".env");
 
@@ -178,7 +188,7 @@ void main() async {
     final wg = WaitGroup();
     wg.add();
     final handler =
-        ObjectStoragePutObjectEventHandler(taskId: "putObjectSimple");
+        ObjectStoragePutObjectEventHandler(taskId: "putObjectMultiPart");
     handler.onFailed = (msg) {
       cosLog(msg.errorMessage ?? "未知错误");
       wg.done();
@@ -232,8 +242,8 @@ void main() async {
   test('putObjectFileSizeLessThan20M', () async {
     final wg = WaitGroup();
     wg.add();
-    final handler =
-        ObjectStoragePutObjectEventHandler(taskId: "putObjectSimple");
+    final handler = ObjectStoragePutObjectEventHandler(
+        taskId: "putObjectFileSizeLessThan20M");
     handler.onFailed = (msg) {
       cosLog(msg.errorMessage ?? "未知错误");
       wg.done();
@@ -266,8 +276,8 @@ void main() async {
   test('putObjectFileSizeMoreThan20M', () async {
     final wg = WaitGroup();
     wg.add();
-    final handler =
-        ObjectStoragePutObjectEventHandler(taskId: "putObjectSimple");
+    final handler = ObjectStoragePutObjectEventHandler(
+        taskId: "putObjectFileSizeMoreThan20M");
     handler.onFailed = (msg) {
       cosLog(msg.errorMessage ?? "未知错误");
       wg.done();
@@ -284,7 +294,7 @@ void main() async {
         taskId: "putObjectFileSizeMoreThan20M",
         file: largeFile,
         bucketName: bucketName!,
-        objectName: "file-small.jpg",
+        objectName: largeFile.name,
         accessKeyId: secretId!,
         accessKeySecret: secretKey!,
         securityToken: "",

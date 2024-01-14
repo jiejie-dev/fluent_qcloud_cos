@@ -1,11 +1,11 @@
 import 'dart:developer';
 import 'package:convert/convert.dart';
-import 'package:cross_file/cross_file.dart';
 import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
 import 'package:fluent_object_storage/fluent_object_storage.dart';
 import 'package:fluent_qcloud_cos/models/chunks.dart';
 import 'package:fluent_qcloud_cos/models/divide_part_result.dart';
+import 'package:platform_file/platform_file.dart';
 import 'package:xml/xml.dart';
 
 cosLog(String msg) {
@@ -106,7 +106,7 @@ String hmacSha1(String msg, String key) {
   return hex.encode(Hmac(sha1, key.codeUnits).convert(msg.codeUnits).bytes);
 }
 
-Future<Response<T>> request<T>(
+Future<Response<T>> cosRequest<T>(
   String method,
   String action, {
   required ObjectStoragePutObjectRequest putObjectRequest,
@@ -162,8 +162,8 @@ Future<Response<T>> request<T>(
   }
 }
 
-Future<SplitFileChunksResult> splitFileIntoChunks(XFile file) async {
-  final filesize = await file.length();
+Future<SplitFileChunksResult> splitFileIntoChunks(PlatformFile file) async {
+  final filesize = file.size;
   final divider = DividePartResult.parse(filesize);
   final List<Chunk> chunks = [];
   for (var i = 0; i < divider.partNumber; i++) {

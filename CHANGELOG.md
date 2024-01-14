@@ -1,7 +1,16 @@
 
+## v0.1.2
+
+2024-01-14
+
+### Fix
+
+* No file or variants found for asset: packages/fluent_qcloud_cos/.env
+
+
 ## v0.1.1
 
-> 2024-01-14
+2024-01-14
 
 ### Chore
 
@@ -14,7 +23,7 @@
 
 ## v0.1.0
 
-> 2024-01-11
+2024-01-11
 
 ### Refactor
 
@@ -23,5 +32,5 @@
 
 ## v0.0.2
 
-> 2023-02-22
+2023-02-22
 
