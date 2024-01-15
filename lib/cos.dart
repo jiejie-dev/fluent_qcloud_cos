@@ -5,7 +5,6 @@ import 'dart:convert';
 
 import 'package:async/async.dart';
 import 'package:fluent_object_storage/fluent_object_storage.dart';
-import 'package:fluent_qcloud_cos/constants.dart';
 import 'package:fluent_qcloud_cos/exceptions.dart';
 import 'package:fluent_qcloud_cos/models/chunks.dart';
 import 'package:fluent_qcloud_cos/models/complete_multipart_upload.dart';
@@ -23,7 +22,7 @@ class FluentQCloudCos {
   static Future<void> putObject(ObjectStoragePutObjectRequest request,
       {ObjectStoragePutObjectEventHandler? handler}) async {
     final fileSize = request.file.size;
-    if (fileSize > defaultSimpleFileMaxSize) {
+    if (fileSize > request.divisionForUpload) {
       await putObjectMultiPart(request, handler: handler);
     } else {
       await putObjectSimple(request, handler: handler);
@@ -37,7 +36,8 @@ class FluentQCloudCos {
       final initResult = await initiateMultipartUpload(request);
       uploadId = initResult.uploadId;
     }
-    final splitResult = await splitFileIntoChunks(request.file);
+    final splitResult =
+        await splitFileIntoChunks(request.file, request.sliceSizeForUpload);
     final chunks = splitResult.chunks;
     final partsResult = await listParts(uploadId, request);
     for (var part in partsResult.parts) {
@@ -54,19 +54,18 @@ class FluentQCloudCos {
       chunks[partNumber].eTag = part.eTag;
     }
     final fileSize = request.file.size;
+    final stream = request.file.readStream;
+    if (stream == null) {
+      throw COSException(400, "file stream is null");
+    }
+    final reader = ChunkedStreamReader(stream);
     for (var chunk in chunks) {
+      final partData = await reader.readChunk(chunk.size);
       if (chunk.done) {
         continue;
       }
-      final stream = request.file.readStream;
-      if (stream == null) {
-        throw COSException(400, "file stream is null");
-      }
-      final fs = stream.skip(chunk.offset);
-      final reader = ChunkedStreamReader(fs);
-      final partData = await reader.readChunk(chunk.size);
+
       chunk.eTag = await uploadPart(uploadId, chunk.number, partData, request);
-      await reader.cancel();
 
       if (handler?.onProgress != null) {
         cosLog('onProgress: ${chunk.offset + chunk.size}/$fileSize');
@@ -78,6 +77,7 @@ class FluentQCloudCos {
         ));
       }
     }
+    // await reader.cancel();
     await completeMultipartUpload(uploadId, chunks, request);
     if (handler?.onSuccess != null) {
       handler!.onSuccess!(ObjectStoragePutObjectResult(
@@ -168,17 +168,21 @@ class FluentQCloudCos {
     ObjectStoragePutObjectRequest request,
   ) async {
     final payload = CompleteMultipartUpload(chunks);
+    final xmlContent = payload.xmlContent();
+    cosLog(xmlContent);
     final resp = await cosRequest(
       'POST',
       request.objectName,
       putObjectRequest: request,
       params: {'uploadId': uploadId},
       token: request.securityToken,
-      data: utf8.encode(payload.xmlContent()),
+      data: utf8.encode(xmlContent),
+      headers: {"content-type": "application/xml"},
     );
 
     // final resultXmlContent = await resp.transform(utf8.decoder).join("");
     if (resp.statusCode != 200) {
+      cosLog("completeMultipartUpload error: ${resp.requestOptions.data}");
       throw COSException(resp.statusCode!, resp.data ?? "");
     }
   }

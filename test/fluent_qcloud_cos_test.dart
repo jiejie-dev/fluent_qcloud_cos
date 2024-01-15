@@ -12,26 +12,34 @@ import 'package:fluent_qcloud_cos/fluent_qcloud_cos.dart';
 import 'package:platform_file/platform_file.dart';
 import 'package:sync/sync.dart';
 
+const smallFileName = "1000x1000-1MB.png";
+const largeFileName = "1000x1000-3MB.png";
+
 final String pathPrefix =
     Directory.current.path.endsWith('test') ? './assets/' : './test/assets/';
 
-void main() async {
-  final smallFilePath = "${pathPrefix}1000x1000-1MB.png";
-  final largeFilePath = "${pathPrefix}1000x1000-21MB.png";
+final smallFilePath = "$pathPrefix$smallFileName";
+final largeFilePath = "$pathPrefix$largeFileName";
 
-  final smallFile = PlatformFile(
-    name: "1000x1000-1MB.png",
+PlatformFile createSmallFile() {
+  return PlatformFile(
+    name: smallFileName,
     path: smallFilePath,
     size: 1 * 1024 * 1024,
     readStream: File(smallFilePath).openRead(),
   );
-  final largeFile = PlatformFile(
-    name: "1000x1000-21MB.png",
+}
+
+PlatformFile createLargeFile() {
+  return PlatformFile(
+    name: largeFileName,
     path: largeFilePath,
-    size: 21 * 1024 * 1024,
+    size: 3 * 1024 * 1024,
     readStream: File(largeFilePath).openRead(),
   );
+}
 
+void main() async {
   await dotenv.load(fileName: ".env");
 
   final secretId = dotenv.env['SECRET_ID'];
@@ -166,12 +174,13 @@ void main() async {
     handler.onProgress = (msg) {
       cosLog("${msg.currentSize}/${msg.totalSize}");
     };
+    final smallFile = createSmallFile();
     await FluentQCloudCos.putObjectSimple(
       ObjectStoragePutObjectRequest(
         taskId: "putObjectSimple",
         file: smallFile,
         bucketName: bucketName!,
-        objectName: "file-small.jpg",
+        objectName: smallFile.name,
         accessKeyId: secretId!,
         accessKeySecret: secretKey!,
         securityToken: "",
@@ -200,12 +209,13 @@ void main() async {
     handler.onProgress = (msg) {
       cosLog("${msg.currentSize}/${msg.totalSize}");
     };
+    final largeFile = createLargeFile();
     await FluentQCloudCos.putObjectMultiPart(
       ObjectStoragePutObjectRequest(
         taskId: "putObjectMultiPart",
         file: largeFile,
         bucketName: bucketName!,
-        objectName: "file-large.mp4",
+        objectName: largeFile.name,
         accessKeyId: secretId!,
         accessKeySecret: secretKey!,
         expiredTime:
@@ -221,12 +231,13 @@ void main() async {
   test('initiateMultipartUpload', () async {
     final wg = WaitGroup();
     wg.add();
+    final largeFile = createLargeFile();
     final result = await FluentQCloudCos.initiateMultipartUpload(
       ObjectStoragePutObjectRequest(
         taskId: "initiateMultipartUpload",
         file: largeFile,
         bucketName: bucketName!,
-        objectName: "file-large.mp4",
+        objectName: largeFile.name,
         accessKeyId: secretId!,
         accessKeySecret: secretKey!,
         expiredTime:
@@ -239,11 +250,11 @@ void main() async {
     wg.wait();
   });
 
-  test('putObjectFileSizeLessThan20M', () async {
+  test('putObject_smallFile', () async {
     final wg = WaitGroup();
     wg.add();
-    final handler = ObjectStoragePutObjectEventHandler(
-        taskId: "putObjectFileSizeLessThan20M");
+    final handler =
+        ObjectStoragePutObjectEventHandler(taskId: "putObject_smallFile");
     handler.onFailed = (msg) {
       cosLog(msg.errorMessage ?? "未知错误");
       wg.done();
@@ -255,12 +266,13 @@ void main() async {
     handler.onProgress = (msg) {
       cosLog("${msg.currentSize}/${msg.totalSize}");
     };
+    final smallFile = createSmallFile();
     await FluentQCloudCos.putObject(
       ObjectStoragePutObjectRequest(
-        taskId: "putObjectFileSizeLessThan20M",
+        taskId: "putObject_smallFile",
         file: smallFile,
         bucketName: bucketName!,
-        objectName: "file-small.jpg",
+        objectName: smallFile.name,
         accessKeyId: secretId!,
         accessKeySecret: secretKey!,
         securityToken: "",
@@ -273,11 +285,11 @@ void main() async {
     wg.wait();
   });
 
-  test('putObjectFileSizeMoreThan20M', () async {
+  test('putObject_largeSize', () async {
     final wg = WaitGroup();
     wg.add();
-    final handler = ObjectStoragePutObjectEventHandler(
-        taskId: "putObjectFileSizeMoreThan20M");
+    final handler =
+        ObjectStoragePutObjectEventHandler(taskId: "putObject_largeSize");
     handler.onFailed = (msg) {
       cosLog(msg.errorMessage ?? "未知错误");
       wg.done();
@@ -289,9 +301,10 @@ void main() async {
     handler.onProgress = (msg) {
       cosLog("${msg.currentSize}/${msg.totalSize}");
     };
+    final largeFile = createLargeFile();
     await FluentQCloudCos.putObject(
       ObjectStoragePutObjectRequest(
-        taskId: "putObjectFileSizeMoreThan20M",
+        taskId: "putObject_largeSize",
         file: largeFile,
         bucketName: bucketName!,
         objectName: largeFile.name,

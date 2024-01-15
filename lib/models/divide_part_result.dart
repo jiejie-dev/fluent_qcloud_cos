@@ -4,8 +4,7 @@ class DividePartResult {
 
   DividePartResult(this.partSize, this.partNumber);
 
-  factory DividePartResult.parse(int filesize) {
-    int partSize = 1024 * 1024 * 20;
+  factory DividePartResult.parse(int filesize, int partSize) {
     int partNumber = filesize ~/ partSize;
     while (partNumber > 1000) {
       partSize = partSize * 2;

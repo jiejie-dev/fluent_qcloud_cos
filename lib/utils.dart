@@ -162,9 +162,10 @@ Future<Response<T>> cosRequest<T>(
   }
 }
 
-Future<SplitFileChunksResult> splitFileIntoChunks(PlatformFile file) async {
+Future<SplitFileChunksResult> splitFileIntoChunks(
+    PlatformFile file, int partSize) async {
   final filesize = file.size;
-  final divider = DividePartResult.parse(filesize);
+  final divider = DividePartResult.parse(filesize, partSize);
   final List<Chunk> chunks = [];
   for (var i = 0; i < divider.partNumber; i++) {
     final number = i + 1;
