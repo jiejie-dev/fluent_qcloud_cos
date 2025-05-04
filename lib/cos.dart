@@ -101,6 +101,7 @@ class FluentQCloudCos {
       },
       token: request.securityToken,
       stream: request.file.readStream,
+      data: request.file.bytes,
     );
     cosLog("request-id:${response.headers["x-cos-request-id"]?.first ?? ""}");
     if (response.statusCode != 200) {

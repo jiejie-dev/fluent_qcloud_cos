@@ -26,7 +26,8 @@ PlatformFile createSmallFile() {
     name: smallFileName,
     path: smallFilePath,
     size: 1 * 1024 * 1024,
-    readStream: File(smallFilePath).openRead(),
+    // readStream: File(smallFilePath).openRead(),
+    bytes: File(smallFilePath).readAsBytesSync(),
   );
 }
 

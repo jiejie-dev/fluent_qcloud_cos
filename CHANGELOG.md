@@ -1,4 +1,13 @@
 
+## v0.2.1
+
+2024-01-17
+
+### Chore
+
+* comments assets field in pubspec.yaml
+
+
 ## v0.2.0
 
 2024-01-15

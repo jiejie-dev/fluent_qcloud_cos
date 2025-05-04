@@ -1,6 +1,6 @@
 name: fluent_qcloud_cos
 description: Tencent Cloud Object Storage Upload Plugin, supports fast upload and progress display 腾讯云对象存储上传插件, 支持分快上传, 进度显示.
-version: 0.2.0
+version: 0.2.3
 homepage: https://github.com/jiejie-dev/fluent_qcloud_cos
 
 environment:
