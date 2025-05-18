@@ -9,7 +9,6 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:fluent_qcloud_cos/fluent_qcloud_cos.dart';
-import 'package:platform_file/platform_file.dart';
 import 'package:sync/sync.dart';
 
 const smallFileName = "1000x1000-1MB.png";

@@ -130,7 +130,7 @@ Future<Response<T>> cosRequest<T>(
 
   // "$scheme://$bucketName.cos.$region.myqcloud.com"
   final uri =
-      "$scheme://${putObjectRequest.bucketName}.cos.${putObjectRequest.region}.myqcloud.com";
+      "$scheme://${putObjectRequest.bucketName}.cos.${putObjectRequest.accelerate ? "accelerate" : putObjectRequest.region}.myqcloud.com";
   var sighn = getSign(
     method,
     action,
