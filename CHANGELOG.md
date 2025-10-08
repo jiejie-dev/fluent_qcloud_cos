@@ -1,3 +1,11 @@
+## 0.2.4
+
+ - **REFACTOR**: 使用 platform_file 替代 cross_file.
+ - **REFACTOR**: 使用 XFile 代替文件路径.
+ - **FIX**: No file or variants found for asset: packages/fluent_qcloud_cos/.env.
+ - **FIX**: 进度事件没有传递taskId的问题.
+ - **FEAT**: 添加自定义分块大小和启用分快上传大小配置.
+
 
 ## v0.2.1
 
