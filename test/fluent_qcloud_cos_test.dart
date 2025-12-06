@@ -5,8 +5,8 @@ import 'package:fluent_qcloud_cos/models/initiate_multipart_upload_result.dart';
 import 'package:fluent_qcloud_cos/models/list_multipart_uploads.dart';
 import 'package:fluent_qcloud_cos/models/list_part.dart';
 import 'package:fluent_qcloud_cos/utils.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:flutter_test/flutter_test.dart';
+import 'package:dotenv/dotenv.dart';
+import 'package:test/test.dart';
 
 import 'package:fluent_qcloud_cos/fluent_qcloud_cos.dart';
 import 'package:sync/sync.dart';
@@ -14,8 +14,9 @@ import 'package:sync/sync.dart';
 const smallFileName = "1000x1000-1MB.png";
 const largeFileName = "1000x1000-3MB.png";
 
-final String pathPrefix =
-    Directory.current.path.endsWith('test') ? './assets/' : './test/assets/';
+final String pathPrefix = Directory.current.path.endsWith('test')
+    ? './assets/'
+    : './test/assets/';
 
 final smallFilePath = "$pathPrefix$smallFileName";
 final largeFilePath = "$pathPrefix$largeFileName";
@@ -40,39 +41,46 @@ PlatformFile createLargeFile() {
 }
 
 void main() async {
-  await dotenv.load(fileName: ".env");
+  final dotenv = DotEnv();
+  dotenv.load([".env"]);
 
-  final secretId = dotenv.env['SECRET_ID'];
-  final secretKey = dotenv.env['SECRET_KEY'];
-  final bucketName = dotenv.env['BUCKET_NAME'];
-  final region = dotenv.env['REGION'];
+  final secretId = dotenv['SECRET_ID'];
+  final secretKey = dotenv['SECRET_KEY'];
+  final bucketName = dotenv['BUCKET_NAME'];
+  final region = dotenv['REGION'];
 
   test('parse_InitiateMultipartUploadResult', () {
-    final result =
-        InitiateMultipartUploadResult.parse('''<InitiateMultipartUploadResult>
+    final result = InitiateMultipartUploadResult.parse(
+      '''<InitiateMultipartUploadResult>
             <Bucket>examplebucket-1250000000</Bucket>
             <Key>exampleobject</Key>
             <UploadId>1585130821cbb7df1d11846c073ad648e8f33b087cec2381df437acdc833cf654b9ecc6361</UploadId>
-</InitiateMultipartUploadResult>''');
-    expect(result.uploadId,
-        '1585130821cbb7df1d11846c073ad648e8f33b087cec2381df437acdc833cf654b9ecc6361');
+</InitiateMultipartUploadResult>''',
+    );
+    expect(
+      result.uploadId,
+      '1585130821cbb7df1d11846c073ad648e8f33b087cec2381df437acdc833cf654b9ecc6361',
+    );
   });
 
   test('parse_CompleteMultipartUploadResult', () {
     final result = CompleteMultipartUploadResult.parse(
-        '''<CompleteMultipartUploadResult xmlns="http://www.qcloud.com/document/product/436/7751">
+      '''<CompleteMultipartUploadResult xmlns="http://www.qcloud.com/document/product/436/7751">
     <Location>http://examplebucket-1250000000.cos.ap-beijing.myqcloud.com/exampleobject</Location>
     <Bucket>examplebucket-1250000000</Bucket>
     <Key>exampleobject</Key>
     <ETag>&quot;aa259a62513358f69e98e72e59856d88-3&quot;</ETag>
-</CompleteMultipartUploadResult>''');
-    expect(result.location,
-        'http://examplebucket-1250000000.cos.ap-beijing.myqcloud.com/exampleobject');
+</CompleteMultipartUploadResult>''',
+    );
+    expect(
+      result.location,
+      'http://examplebucket-1250000000.cos.ap-beijing.myqcloud.com/exampleobject',
+    );
   });
 
   test('parse_ListMultipartUploadsResult', () {
-    final result =
-        ListMultipartUploadsResult.parse('''<ListMultipartUploadsResult>
+    final result = ListMultipartUploadsResult.parse(
+      '''<ListMultipartUploadsResult>
     <Bucket>examplebucket-1250000000</Bucket>
     <Encoding-Type/>
     <KeyMarker/>
@@ -123,13 +131,14 @@ void main() async {
         <StorageClass>Standard</StorageClass>
         <Initiated>Wed Jan 18 16:14:30 2017</Initiated>
     </Upload>
-</ListMultipartUploadsResult>''');
+</ListMultipartUploadsResult>''',
+    );
     expect(result.uploads.length, 3);
   });
 
   test('parse_ListPartsResult', () {
-    final result =
-        ListPartsResult.parse('''<?xml version="1.0" encoding="UTF-8" ?>
+    final result = ListPartsResult.parse(
+      '''<?xml version="1.0" encoding="UTF-8" ?>
 <ListPartsResult>
     <Bucket>examplebucket-1250000000</Bucket>
     <Encoding-type/>
@@ -154,15 +163,17 @@ void main() async {
     <StorageClass>STANDARD</StorageClass>
     <MaxParts>1</MaxParts>
     <IsTruncated>true</IsTruncated>
-</ListPartsResult>''');
+</ListPartsResult>''',
+    );
     expect(result.parts.length, 1);
   });
 
   test('putObjectSimple', () async {
     final wg = WaitGroup();
     wg.add();
-    final handler =
-        ObjectStoragePutObjectEventHandler(taskId: "putObjectSimple");
+    final handler = ObjectStoragePutObjectEventHandler(
+      taskId: "putObjectSimple",
+    );
     handler.onFailed = (msg) {
       cosLog(msg.errorMessage ?? "未知错误");
       wg.done();
@@ -184,8 +195,9 @@ void main() async {
         accessKeyId: secretId!,
         accessKeySecret: secretKey!,
         securityToken: "",
-        expiredTime:
-            DateTime.now().add(const Duration(days: 50)).millisecondsSinceEpoch,
+        expiredTime: DateTime.now()
+            .add(const Duration(days: 50))
+            .millisecondsSinceEpoch,
         region: region!,
       ),
       handler: handler,
@@ -196,8 +208,9 @@ void main() async {
   test('putObjectMultiPart', () async {
     final wg = WaitGroup();
     wg.add();
-    final handler =
-        ObjectStoragePutObjectEventHandler(taskId: "putObjectMultiPart");
+    final handler = ObjectStoragePutObjectEventHandler(
+      taskId: "putObjectMultiPart",
+    );
     handler.onFailed = (msg) {
       cosLog(msg.errorMessage ?? "未知错误");
       wg.done();
@@ -218,8 +231,9 @@ void main() async {
         objectName: largeFile.name,
         accessKeyId: secretId!,
         accessKeySecret: secretKey!,
-        expiredTime:
-            DateTime.now().add(const Duration(days: 50)).millisecondsSinceEpoch,
+        expiredTime: DateTime.now()
+            .add(const Duration(days: 50))
+            .millisecondsSinceEpoch,
         region: region!,
         securityToken: '',
       ),
@@ -240,8 +254,9 @@ void main() async {
         objectName: largeFile.name,
         accessKeyId: secretId!,
         accessKeySecret: secretKey!,
-        expiredTime:
-            DateTime.now().add(const Duration(days: 50)).millisecondsSinceEpoch,
+        expiredTime: DateTime.now()
+            .add(const Duration(days: 50))
+            .millisecondsSinceEpoch,
         region: region!,
         securityToken: '',
       ),
@@ -253,8 +268,9 @@ void main() async {
   test('putObject_smallFile', () async {
     final wg = WaitGroup();
     wg.add();
-    final handler =
-        ObjectStoragePutObjectEventHandler(taskId: "putObject_smallFile");
+    final handler = ObjectStoragePutObjectEventHandler(
+      taskId: "putObject_smallFile",
+    );
     handler.onFailed = (msg) {
       cosLog(msg.errorMessage ?? "未知错误");
       wg.done();
@@ -276,8 +292,9 @@ void main() async {
         accessKeyId: secretId!,
         accessKeySecret: secretKey!,
         securityToken: "",
-        expiredTime:
-            DateTime.now().add(const Duration(days: 50)).millisecondsSinceEpoch,
+        expiredTime: DateTime.now()
+            .add(const Duration(days: 50))
+            .millisecondsSinceEpoch,
         region: region!,
       ),
       handler: handler,
@@ -288,8 +305,9 @@ void main() async {
   test('putObject_largeSize', () async {
     final wg = WaitGroup();
     wg.add();
-    final handler =
-        ObjectStoragePutObjectEventHandler(taskId: "putObject_largeSize");
+    final handler = ObjectStoragePutObjectEventHandler(
+      taskId: "putObject_largeSize",
+    );
     handler.onFailed = (msg) {
       cosLog(msg.errorMessage ?? "未知错误");
       wg.done();
@@ -311,8 +329,9 @@ void main() async {
         accessKeyId: secretId!,
         accessKeySecret: secretKey!,
         securityToken: "",
-        expiredTime:
-            DateTime.now().add(const Duration(days: 50)).millisecondsSinceEpoch,
+        expiredTime: DateTime.now()
+            .add(const Duration(days: 50))
+            .millisecondsSinceEpoch,
         region: region!,
       ),
       handler: handler,
