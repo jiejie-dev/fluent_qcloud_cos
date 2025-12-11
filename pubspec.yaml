@@ -5,7 +5,7 @@ version: 0.2.4
 homepage: https://github.com/jiejie-dev/fluent_qcloud_cos
 
 environment:
-  sdk: ">=3.9.2 <4.0.0"
+  sdk: ^3.8.1
 
 dependencies:
   fluent_object_storage: ^0.3.2
