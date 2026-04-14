@@ -4,7 +4,6 @@ import 'package:dio/dio.dart';
 import 'package:fluent_qcloud_cos/cos.dart';
 import 'package:fluent_qcloud_cos/exceptions.dart';
 import 'package:fluent_qcloud_cos/models/chunks.dart';
-import 'package:fluent_qcloud_cos/utils.dart';
 import 'package:fluent_object_storage/fluent_object_storage.dart';
 import 'package:platform_file/platform_file.dart';
 import 'package:test/test.dart';
@@ -29,10 +28,7 @@ void main() {
       mock.enqueueResponse(statusCode: 200, data: 'ok');
 
       final file = createTestFile(size: 1024);
-      final request = createTestRequest(
-        file: file,
-        divisionForUpload: 2048,
-      );
+      final request = createTestRequest(file: file, divisionForUpload: 2048);
 
       await FluentQCloudCos.putObject(request);
       expect(mock.capturedRequests.length, 1);
@@ -66,14 +62,16 @@ void main() {
       );
       // uploadPart x3
       for (var i = 0; i < 3; i++) {
-        mock.enqueue((opts) => Response(
-              requestOptions: opts,
-              statusCode: 200,
-              data: 'ok',
-              headers: Headers.fromMap({
-                'etag': ['"etag-${i + 1}"']
-              }),
-            ));
+        mock.enqueue(
+          (opts) => Response(
+            requestOptions: opts,
+            statusCode: 200,
+            data: 'ok',
+            headers: Headers.fromMap({
+              'etag': ['"etag-${i + 1}"'],
+            }),
+          ),
+        );
       }
       // completeMultipartUpload
       mock.enqueueResponse(statusCode: 200, data: 'ok');
@@ -184,7 +182,8 @@ void main() {
         // listMultipartUploads → has existing upload
         mock.enqueueResponse(
           statusCode: 200,
-          data: '<ListMultipartUploadsResult><Upload>'
+          data:
+              '<ListMultipartUploadsResult><Upload>'
               '<Key>$objectName</Key><UploadId>$uploadId</UploadId>'
               '</Upload></ListMultipartUploadsResult>',
         );
@@ -211,14 +210,16 @@ void main() {
 
       // uploadPart x partCount
       for (var i = 0; i < partCount; i++) {
-        mock.enqueue((opts) => Response(
-              requestOptions: opts,
-              statusCode: 200,
-              data: 'ok',
-              headers: Headers.fromMap({
-                'etag': ['"etag-${i + 1}"']
-              }),
-            ));
+        mock.enqueue(
+          (opts) => Response(
+            requestOptions: opts,
+            statusCode: 200,
+            data: 'ok',
+            headers: Headers.fromMap({
+              'etag': ['"etag-${i + 1}"'],
+            }),
+          ),
+        );
       }
 
       // completeMultipartUpload
@@ -227,10 +228,7 @@ void main() {
 
     test('completes fresh multipart upload', () async {
       final file = createTestFile(size: 3072);
-      final request = createTestRequest(
-        file: file,
-        sliceSizeForUpload: 1024,
-      );
+      final request = createTestRequest(file: file, sliceSizeForUpload: 1024);
       enqueueMultiPartFlow(partCount: 3);
 
       await FluentQCloudCos.putObjectMultiPart(request);
@@ -241,10 +239,7 @@ void main() {
 
     test('resumes existing multipart upload', () async {
       final file = createTestFile(size: 3072);
-      final request = createTestRequest(
-        file: file,
-        sliceSizeForUpload: 1024,
-      );
+      final request = createTestRequest(file: file, sliceSizeForUpload: 1024);
       enqueueMultiPartFlow(
         partCount: 3,
         withResume: true,
@@ -259,10 +254,7 @@ void main() {
 
     test('calls onProgress for each uploaded part', () async {
       final file = createTestFile(size: 2048);
-      final request = createTestRequest(
-        file: file,
-        sliceSizeForUpload: 1024,
-      );
+      final request = createTestRequest(file: file, sliceSizeForUpload: 1024);
       enqueueMultiPartFlow(partCount: 2);
 
       List<int> progressSizes = [];
@@ -277,10 +269,7 @@ void main() {
 
     test('calls onSuccess on completion', () async {
       final file = createTestFile(size: 1024);
-      final request = createTestRequest(
-        file: file,
-        sliceSizeForUpload: 1024,
-      );
+      final request = createTestRequest(file: file, sliceSizeForUpload: 1024);
       enqueueMultiPartFlow(partCount: 1);
 
       bool successCalled = false;
@@ -298,10 +287,7 @@ void main() {
       mock.enqueueResponse(statusCode: 500, data: 'Server Error');
 
       final file = createTestFile(size: 2048);
-      final request = createTestRequest(
-        file: file,
-        sliceSizeForUpload: 1024,
-      );
+      final request = createTestRequest(file: file, sliceSizeForUpload: 1024);
 
       bool failedCalled = false;
       final handler = ObjectStoragePutObjectEventHandler(taskId: 'test');
@@ -334,10 +320,7 @@ void main() {
         size: 2048,
         bytes: Uint8List.fromList(data),
       );
-      final request = createTestRequest(
-        file: file,
-        sliceSizeForUpload: 1024,
-      );
+      final request = createTestRequest(file: file, sliceSizeForUpload: 1024);
       enqueueMultiPartFlow(partCount: 2);
 
       await FluentQCloudCos.putObjectMultiPart(request);
@@ -346,10 +329,7 @@ void main() {
 
     test('throws when file has neither readStream nor bytes', () async {
       final file = PlatformFile(name: 'test.png', size: 2048);
-      final request = createTestRequest(
-        file: file,
-        sliceSizeForUpload: 1024,
-      );
+      final request = createTestRequest(file: file, sliceSizeForUpload: 1024);
 
       // listMultipartUploads → empty
       mock.enqueueResponse(
@@ -377,10 +357,7 @@ void main() {
 
     test('throws when server returns inconsistent part number', () async {
       final file = createTestFile(size: 2048);
-      final request = createTestRequest(
-        file: file,
-        sliceSizeForUpload: 1024,
-      );
+      final request = createTestRequest(file: file, sliceSizeForUpload: 1024);
 
       // listMultipartUploads → has upload
       mock.enqueueResponse(
@@ -404,10 +381,7 @@ void main() {
 
     test('skips already uploaded parts in resume', () async {
       final file = createTestFile(size: 3072);
-      final request = createTestRequest(
-        file: file,
-        sliceSizeForUpload: 1024,
-      );
+      final request = createTestRequest(file: file, sliceSizeForUpload: 1024);
 
       // listMultipartUploads → has existing upload
       mock.enqueueResponse(
@@ -424,14 +398,16 @@ void main() {
       );
       // uploadPart x2 (parts 2 and 3, part 1 skipped)
       for (var i = 0; i < 2; i++) {
-        mock.enqueue((opts) => Response(
-              requestOptions: opts,
-              statusCode: 200,
-              data: 'ok',
-              headers: Headers.fromMap({
-                'etag': ['"etag-new-${i + 2}"']
-              }),
-            ));
+        mock.enqueue(
+          (opts) => Response(
+            requestOptions: opts,
+            statusCode: 200,
+            data: 'ok',
+            headers: Headers.fromMap({
+              'etag': ['"etag-new-${i + 2}"'],
+            }),
+          ),
+        );
       }
       // completeMultipartUpload
       mock.enqueueResponse(statusCode: 200, data: 'ok');
@@ -478,25 +454,32 @@ void main() {
 
       expect(mock.capturedRequests.first.method, 'POST');
       expect(
-          mock.capturedRequests.first.queryParameters.containsKey('uploads'),
-          isTrue);
+        mock.capturedRequests.first.queryParameters.containsKey('uploads'),
+        isTrue,
+      );
     });
   });
 
   group('uploadPart', () {
     test('returns ETag on success', () async {
-      mock.enqueue((opts) => Response(
-            requestOptions: opts,
-            statusCode: 200,
-            data: 'ok',
-            headers: Headers.fromMap({
-              'etag': ['"part-etag-1"']
-            }),
-          ));
+      mock.enqueue(
+        (opts) => Response(
+          requestOptions: opts,
+          statusCode: 200,
+          data: 'ok',
+          headers: Headers.fromMap({
+            'etag': ['"part-etag-1"'],
+          }),
+        ),
+      );
 
       final request = createTestRequest();
-      final etag = await FluentQCloudCos.uploadPart(
-          'uid', 1, [1, 2, 3, 4], request);
+      final etag = await FluentQCloudCos.uploadPart('uid', 1, [
+        1,
+        2,
+        3,
+        4,
+      ], request);
       expect(etag, '"part-etag-1"');
     });
 
@@ -511,14 +494,16 @@ void main() {
     });
 
     test('sends PUT with uploadId and partNumber params', () async {
-      mock.enqueue((opts) => Response(
-            requestOptions: opts,
-            statusCode: 200,
-            data: 'ok',
-            headers: Headers.fromMap({
-              'etag': ['"etag"']
-            }),
-          ));
+      mock.enqueue(
+        (opts) => Response(
+          requestOptions: opts,
+          statusCode: 200,
+          data: 'ok',
+          headers: Headers.fromMap({
+            'etag': ['"etag"'],
+          }),
+        ),
+      );
 
       final request = createTestRequest();
       await FluentQCloudCos.uploadPart('my-uid', 5, [1], request);
@@ -530,14 +515,16 @@ void main() {
     });
 
     test('sends correct content-length header', () async {
-      mock.enqueue((opts) => Response(
-            requestOptions: opts,
-            statusCode: 200,
-            data: 'ok',
-            headers: Headers.fromMap({
-              'etag': ['"etag"']
-            }),
-          ));
+      mock.enqueue(
+        (opts) => Response(
+          requestOptions: opts,
+          statusCode: 200,
+          data: 'ok',
+          headers: Headers.fromMap({
+            'etag': ['"etag"'],
+          }),
+        ),
+      );
 
       final partData = List.filled(2048, 65);
       final request = createTestRequest();
@@ -605,8 +592,10 @@ void main() {
       await FluentQCloudCos.abortMultipartUpload('uid-abort', request);
 
       expect(mock.capturedRequests.first.method, 'DELETE');
-      expect(mock.capturedRequests.first.queryParameters['uploadId'],
-          'uid-abort');
+      expect(
+        mock.capturedRequests.first.queryParameters['uploadId'],
+        'uid-abort',
+      );
     });
 
     test('succeeds with 200 response', () async {
@@ -781,10 +770,7 @@ void main() {
       FluentQCloudCos.maxPartRetries = 3;
 
       final file = createTestFile(size: 1024);
-      final request = createTestRequest(
-        file: file,
-        sliceSizeForUpload: 1024,
-      );
+      final request = createTestRequest(file: file, sliceSizeForUpload: 1024);
 
       // getResumableUploadId → empty
       mock.enqueueResponse(
@@ -808,14 +794,16 @@ void main() {
       // uploadPart attempt 2 → fail
       mock.enqueueResponse(statusCode: 500, data: 'Error');
       // uploadPart attempt 3 → success
-      mock.enqueue((opts) => Response(
-            requestOptions: opts,
-            statusCode: 200,
-            data: 'ok',
-            headers: Headers.fromMap({
-              'etag': ['"retried-etag"']
-            }),
-          ));
+      mock.enqueue(
+        (opts) => Response(
+          requestOptions: opts,
+          statusCode: 200,
+          data: 'ok',
+          headers: Headers.fromMap({
+            'etag': ['"retried-etag"'],
+          }),
+        ),
+      );
       // completeMultipartUpload
       mock.enqueueResponse(statusCode: 200, data: 'ok');
 

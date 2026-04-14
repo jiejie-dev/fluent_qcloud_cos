@@ -29,3 +29,5 @@
 build/
 .env
 pubspec_overrides.yaml
+
+coverage/
