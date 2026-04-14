@@ -18,12 +18,16 @@ class CompleteMultipartUpload {
     final builder = XmlBuilder();
     builder.element("CompleteMultipartUpload", nest: () {
       for (var chunk in chunks) {
+        if (chunk.eTag == null || chunk.eTag!.isEmpty) {
+          throw StateError(
+              'Chunk ${chunk.number} has no ETag - upload may be incomplete');
+        }
         builder.element("Part", nest: () {
           builder.element("PartNumber", nest: () {
             builder.text(chunk.number.toString());
           });
           builder.element("ETag", nest: () {
-            builder.text(chunk.eTag ?? "");
+            builder.text(chunk.eTag!);
           });
         });
       }

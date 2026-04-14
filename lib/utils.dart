@@ -8,15 +8,30 @@ import 'package:fluent_qcloud_cos/models/divide_part_result.dart';
 import 'package:platform_file/platform_file.dart';
 import 'package:xml/xml.dart';
 
-cosLog(String msg) {
-  log(msg, name: "Fluent QCloud COS");
+/// Set to true to enable debug logging (includes sensitive signing data).
+/// Disabled by default to avoid leaking secrets in production.
+bool cosDebugLogEnabled = false;
+
+void cosLog(String msg) {
+  if (cosDebugLogEnabled) {
+    log(msg, name: "Fluent QCloud COS");
+  }
 }
 
 XmlElement subElem(XmlElement node, String name) {
   return node.childElements.singleWhere((node) => node.name.local == name);
 }
 
-///生成签名
+/// Dio factory — override in tests via [cosCreateDio] assignment.
+Dio Function() cosCreateDio = defaultCreateDio;
+
+Dio defaultCreateDio() => Dio(BaseOptions(
+      connectTimeout: const Duration(seconds: 30),
+      receiveTimeout: const Duration(seconds: 120),
+      sendTimeout: const Duration(seconds: 120),
+    ));
+
+/// 生成签名
 String getSign(
   String method,
   String key, {
@@ -26,46 +41,38 @@ String getSign(
   Map<String, String?> params = const {},
   DateTime? signTime,
   bool anonymous = false,
+  Duration signDuration = const Duration(hours: 1),
 }) {
   if (anonymous) {
     return "";
-  } else {
-    signTime = signTime ?? DateTime.now();
-    int startSignTime = signTime.millisecondsSinceEpoch ~/ 1000 - 60;
-    int stopSignTime = signTime.millisecondsSinceEpoch ~/ 1000 + 120;
-    String keyTime = "$startSignTime;$stopSignTime";
-    cosLog("keyTime=$keyTime");
-    String signKey = hmacSha1(keyTime, secretKey);
-    cosLog("signKey=$signKey");
-
-    var lap = getListAndParameters(params);
-    String urlParamList = lap[0];
-    String httpParameters = lap[1];
-    cosLog("urlParamList=$urlParamList");
-    cosLog("httpParameters=$httpParameters");
-
-    lap = getListAndParameters(filterHeaders(headers));
-    String headerList = lap[0];
-    String httpHeaders = lap[1];
-    cosLog("headerList=$headerList");
-    cosLog("httpHeaders=$httpHeaders");
-
-    String httpString =
-        "${method.toLowerCase()}\n$key\n$httpParameters\n$httpHeaders\n";
-    cosLog("httpString=$httpString");
-    String stringToSign =
-        "sha1\n$keyTime\n${hex.encode(sha1.convert(httpString.codeUnits).bytes)}\n";
-    cosLog("stringToSign=$stringToSign");
-    String signature = hmacSha1(stringToSign, signKey);
-    cosLog("signature=$signature");
-    String res =
-        "q-sign-algorithm=sha1&q-ak=$secretId&q-sign-time=$keyTime&q-key-time=$keyTime&q-header-list=$headerList&q-url-param-list=$urlParamList&q-signature=$signature";
-    cosLog("Authorization=$res");
-    return res;
   }
+  signTime = signTime ?? DateTime.now();
+  int startSignTime = signTime.millisecondsSinceEpoch ~/ 1000 - 60;
+  int stopSignTime =
+      signTime.millisecondsSinceEpoch ~/ 1000 + signDuration.inSeconds;
+  String keyTime = "$startSignTime;$stopSignTime";
+  String signKey = hmacSha1(keyTime, secretKey);
+
+  var lap = getListAndParameters(params);
+  String urlParamList = lap[0];
+  String httpParameters = lap[1];
+
+  lap = getListAndParameters(filterHeaders(headers));
+  String headerList = lap[0];
+  String httpHeaders = lap[1];
+
+  String httpString =
+      "${method.toLowerCase()}\n$key\n$httpParameters\n$httpHeaders\n";
+  String stringToSign =
+      "sha1\n$keyTime\n${hex.encode(sha1.convert(httpString.codeUnits).bytes)}\n";
+  String signature = hmacSha1(stringToSign, signKey);
+  String res =
+      "q-sign-algorithm=sha1&q-ak=$secretId&q-sign-time=$keyTime&q-key-time=$keyTime&q-header-list=$headerList&q-url-param-list=$urlParamList&q-signature=$signature";
+  cosLog("Authorization=$res");
+  return res;
 }
 
-filterHeaders(Map<String, String?> src) {
+Map<String, String?> filterHeaders(Map<String, String?> src) {
   Map<String, String?> res = {};
   const validHeaders = {
     "cache-control",
@@ -78,8 +85,9 @@ filterHeaders(Map<String, String?> src) {
     "host"
   };
   for (String key in src.keys) {
-    if (validHeaders.contains(key) || key.toLowerCase().startsWith("x")) {
-      if (key == "content-length" && src["content-length"] == "0") {
+    final lowerKey = key.toLowerCase();
+    if (validHeaders.contains(lowerKey) || lowerKey.startsWith("x-cos-")) {
+      if (lowerKey == "content-length" && src[key] == "0") {
         continue;
       }
       res[key] = src[key];
@@ -88,7 +96,7 @@ filterHeaders(Map<String, String?> src) {
   return res;
 }
 
-///处理请求头和参数列表
+/// 处理请求头和参数列表
 List<String> getListAndParameters(Map<String, String?> params) {
   params = params.map((key, value) => MapEntry(
       Uri.encodeComponent(key).toLowerCase(),
@@ -114,24 +122,18 @@ Future<Response<T>> cosRequest<T>(
   Map<String, String?> headers = const {},
   String? token,
   String scheme = "https",
-  Stream? stream,
+  Stream<List<int>>? stream,
   Object? data,
 }) async {
-  String urlParams =
-      params.keys.toList().map((e) => "$e=${params[e] ?? ""}").join("&");
-  if (urlParams.isNotEmpty) {
-    urlParams = "?$urlParams";
-  }
-  final dio = Dio();
+  final dio = cosCreateDio();
 
   if (!action.startsWith("/")) {
     action = "/$action";
   }
 
-  // "$scheme://$bucketName.cos.$region.myqcloud.com"
   final uri =
       "$scheme://${putObjectRequest.bucketName}.cos.${putObjectRequest.accelerate ? "accelerate" : putObjectRequest.region}.myqcloud.com";
-  var sighn = getSign(
+  var sign = getSign(
     method,
     action,
     secretId: putObjectRequest.accessKeyId,
@@ -140,8 +142,8 @@ Future<Response<T>> cosRequest<T>(
     headers: headers,
   );
   final reqHeaders = headers.map((key, value) => MapEntry(key, value ?? ""));
-  reqHeaders["Authorization"] = sighn;
-  if (token != null) {
+  reqHeaders["Authorization"] = sign;
+  if (token != null && token.isNotEmpty) {
     reqHeaders["x-cos-security-token"] = token;
   }
   try {
@@ -165,6 +167,9 @@ Future<Response<T>> cosRequest<T>(
 Future<SplitFileChunksResult> splitFileIntoChunks(
     PlatformFile file, int partSize) async {
   final filesize = file.size;
+  if (filesize <= 0) {
+    return SplitFileChunksResult(DividePartResult(partSize, 0), []);
+  }
   final divider = DividePartResult.parse(filesize, partSize);
   final List<Chunk> chunks = [];
   for (var i = 0; i < divider.partNumber; i++) {
