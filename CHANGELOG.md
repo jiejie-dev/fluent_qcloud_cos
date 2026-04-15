@@ -1,3 +1,8 @@
+## 0.2.4+1
+
+ - **REFACTOR**(fluent_qcloud_cos): 优化 putObject 方法的代码可读性与结构.
+ - **FIX**(fluent_qcloud_cos): 修复多项 BUG 并添加完整单元测试（覆盖率 99%）.
+
 ## 0.2.4
 
  - **REFACTOR**: 使用 platform_file 替代 cross_file.
