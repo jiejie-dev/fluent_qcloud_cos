@@ -1,3 +1,7 @@
+## 0.2.4+2
+
+ - **DOCS**(fluent_qcloud_cos): 补齐文档目录分层.
+
 ## 0.2.4+1
 
  - **REFACTOR**(fluent_qcloud_cos): 优化 putObject 方法的代码可读性与结构.
