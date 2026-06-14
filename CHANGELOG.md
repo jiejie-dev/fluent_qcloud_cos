@@ -1,3 +1,7 @@
+## 0.2.4+3
+
+ - **DOCS**(fluent_qcloud_cos): 同步包目录路径说明.
+
 ## 0.2.4+2
 
  - **DOCS**(fluent_qcloud_cos): 补齐文档目录分层.
