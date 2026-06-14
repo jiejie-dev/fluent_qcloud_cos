@@ -1,3 +1,7 @@
+## 0.2.4+4
+
+ - **DOCS**(fluent_qcloud_cos): 同步版本日志.
+
 ## 0.2.4+3
 
  - **DOCS**(fluent_qcloud_cos): 同步包目录路径说明.
