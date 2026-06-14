@@ -1,3 +1,7 @@
+## 0.2.4+6
+
+ - **DOCS**(fluent_qcloud_cos): 同步版本日志.
+
 ## 0.2.4+5
 
  - **DOCS**(fluent_qcloud_cos): 同步版本日志.
